@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown Table Visual Editor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .cell-input { border: none; outline: none; background: transparent; width: 100%; min-width: 60px; }
+  .cell-input:focus { background: #eff6ff; }
+  pre { white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-6xl mx-auto p-4">
+  <h1 class="text-2xl font-bold text-gray-800 mb-1">Markdown Table Visual Editor</h1>
+  <p class="text-gray-500 text-sm mb-4">Click any cell to edit. Use the controls to add/remove rows and columns.</p>
+
+  <div class="flex flex-col lg:flex-row gap-4">
+    <!-- Editor Panel -->
+    <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <span class="text-sm font-semibold text-gray-600">Controls:</span>
+        <button onclick="addRow()" class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition">+ Row</button>
+        <button onclick="removeRow()" class="px-3 py-1 bg-red-400 text-white rounded-lg text-sm hover:bg-red-500 transition">− Row</button>
+        <button onclick="addCol()" class="px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition">+ Col</button>
+        <button onclick="removeCol()" class="px-3 py-1 bg-orange-400 text-white rounded-lg text-sm hover:bg-orange-500 transition">− Col</button>
+        <label class="flex items-center gap-1 text-sm text-gray-600 ml-2 cursor-pointer">
+          <input type="checkbox" id="showHeaders" checked onchange="renderTable()" class="rounded">
+          Headers
+        </label>
+      </div>
+      <div class="overflow-x-auto">
+        <table id="editorTable" class="w-full border-collapse text-sm"></table>
+      </div>
+    </div>
+
+    <!-- Preview Panel -->
+    <div class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-gray-600">Markdown Preview</h2>
+        <button onclick="copyMarkdown()" id="copyBtn" class="px-3 py-1 bg-indigo-500 text-white rounded-lg text-sm hover:bg-indigo-600 transition">Copy Markdown</button>
+      </div>
+      <pre id="markdownPreview" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-700 font-mono border border-gray-200 min-h-32"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+let tableData = [
+  ['Name', 'Age', 'City'],
+  ['Alice', '28', 'New York'],
+  ['Bob', '34', 'London'],
+  ['Carol', '25', 'Tokyo'],
+];
+let hasHeaders = true;
+
+function renderTable() {
+  hasHeaders = document.getElementById('showHeaders').checked;
+  const table = document.getElementById('editorTable');
+  table.innerHTML = '';
+
+  tableData.forEach((row, ri) => {
+    const tr = document.createElement('tr');
+    tr.className = ri === 0 && hasHeaders ? 'bg-blue-50' : (ri % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+
+    row.forEach((cell, ci) => {
+      const td = document.createElement(ri === 0 && hasHeaders ? 'th' : 'td');
+      td.className = 'border border-gray-200 px-2 py-1';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'cell-input ' + (ri === 0 && hasHeaders ? 'font-semibold text-gray-700' : 'text-gray-600');
+      input.value = cell;
+      input.placeholder = ri === 0 && hasHeaders ? 'Header' : 'Cell';
+      input.setAttribute('aria-label', `Row ${ri+1}, Column ${ci+1}`);
+      input.addEventListener('input', () => {
+        tableData[ri][ci] = input.value;
+        updatePreview();
+      });
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  updatePreview();
+}
+
+function addRow() {
+  const cols = tableData[0].length;
+  tableData.push(Array(cols).fill(''));
+  renderTable();
+}
+
+function removeRow() {
+  if (tableData.length > 1) {
+    tableData.pop();
+    renderTable();
+  }
+}
+
+function addCol() {
+  tableData.forEach(row => row.push(''));
+  renderTable();
+}
+
+function removeCol() {
+  if (tableData[0].length > 1) {
+    tableData.forEach(row => row.pop());
+    renderTable();
+  }
+}
+
+function updatePreview() {
+  if (!tableData.length) return;
+  const cols = tableData[0].length;
+  const lines = [];
+  const headerRow = hasHeaders ? tableData[0] : Array(cols).fill('');
+
+  if (hasHeaders) {
+    lines.push('| ' + headerRow.map(c => c || ' ').join(' | ') + ' |');
+    lines.push('| ' + Array(cols).fill('---').join(' | ') + ' |');
+    for (let i = 1; i < tableData.length; i++) {
+      lines.push('| ' + tableData[i].map(c => c || ' ').join(' | ') + ' |');
+    }
+  } else {
+    tableData.forEach(row => {
+      lines.push('| ' + row.map(c => c || ' ').join(' | ') + ' |');
+    });
+  }
+  document.getElementById('markdownPreview').textContent = lines.join('\n');
+}
+
+function copyMarkdown() {
+  const text = document.getElementById('markdownPreview').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.className = btn.className.replace('bg-indigo-500', 'bg-green-500').replace('hover:bg-indigo-600', 'hover:bg-green-600');
+    setTimeout(() => {
+      btn.textContent = 'Copy Markdown';
+      btn.className = btn.className.replace('bg-green-500', 'bg-indigo-500').replace('hover:bg-green-600', 'hover:bg-indigo-600');
+    }, 2000);
+  });
+}
+
+renderTable();
+</script>
+</body>
+</html>
